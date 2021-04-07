@@ -531,10 +531,127 @@ void receivepacket() {
     } // dio0=1
 }
 
+char interface[6]; 
+
+void LoadConfiguration(string filename);
+void PrintConfiguration();
+
+void LoadConfiguration(string configurationFile)
+{
+  FILE* p_file = fopen(configurationFile.c_str(), "r");
+  char buffer[65536];
+  FileReadStream fs(p_file, buffer, sizeof(buffer));
+
+  Document document;
+  document.ParseStream(fs);
+
+  for (Value::ConstMemberIterator fileIt = document.MemberBegin(); fileIt != document.MemberEnd(); ++fileIt) {
+    string objectType(fileIt->name.GetString());
+    if (objectType.compare("SX127x_conf") == 0) {
+      const Value& sx127x_conf = fileIt->value;
+      if (sx127x_conf.IsObject()) {
+        for (Value::ConstMemberIterator confIt = sx127x_conf.MemberBegin(); confIt != sx127x_conf.MemberEnd(); ++confIt) {
+          string key(confIt->name.GetString());
+          if (key.compare("freq") == 0) {
+            freq = confIt->value.GetUint();
+          } else if (key.compare("spread_factor") == 0) {
+            sf = (SpreadingFactor_t)confIt->value.GetUint();
+          } else if (key.compare("pin_nss") == 0) {
+            ssPin = confIt->value.GetUint();
+          } else if (key.compare("pin_dio0") == 0) {
+            dio0 = confIt->value.GetUint();
+          } else if (key.compare("pin_rst") == 0) {
+            RST = confIt->value.GetUint();
+          } 
+        }
+      }
+
+    } else if (objectType.compare("gateway_conf") == 0) {
+
+      const Value& gateway_conf = fileIt->value;
+      if (gateway_conf.IsObject()) {
+        for (Value::ConstMemberIterator confIt = gateway_conf.MemberBegin(); confIt != gateway_conf.MemberEnd(); ++confIt) {
+          string memberType(confIt->name.GetString());
+          if (memberType.compare("ref_latitude") == 0) {
+            lat = confIt->value.GetDouble();
+          } else if (memberType.compare("ref_longitude") == 0) {
+            lon = confIt->value.GetDouble();
+          } else if (memberType.compare("ref_altitude") == 0) {
+            alt = confIt->value.GetUint(); 
+
+          } else if (memberType.compare("name") == 0 && confIt->value.IsString()) {
+            string str = confIt->value.GetString();
+            strcpy(platform, str.length()<=24 ? str.c_str() : "name too long");
+          } else if (memberType.compare("email") == 0 && confIt->value.IsString()) {
+            string str = confIt->value.GetString();
+            strcpy(email, str.length()<=40 ? str.c_str() : "email too long");
+          } else if (memberType.compare("desc") == 0 && confIt->value.IsString()) {
+            string str = confIt->value.GetString();
+            strcpy(description, str.length()<=64 ? str.c_str() : "description is too long");
+          } else if (memberType.compare("interface") == 0 && confIt->value.IsString()) {
+            string str = confIt->value.GetString();
+            strcpy(interface, str.length()<=6 ? str.c_str() : "interface too long");
+
+          } else if (memberType.compare("servers") == 0) {
+            const Value& serverConf = confIt->value;
+            if (serverConf.IsObject()) {
+              const Value& serverValue = serverConf;
+              Server_t server;
+              for (Value::ConstMemberIterator srvIt = serverValue.MemberBegin(); srvIt != serverValue.MemberEnd(); ++srvIt) {
+                string key(srvIt->name.GetString());
+                if (key.compare("address") == 0 && srvIt->value.IsString()) {
+                  server.address = srvIt->value.GetString();
+                } else if (key.compare("port") == 0 && srvIt->value.IsUint()) {
+                  server.port = srvIt->value.GetUint();
+                } else if (key.compare("enabled") == 0 && srvIt->value.IsBool()) {
+                  server.enabled = srvIt->value.GetBool();
+                }
+              }
+              servers.push_back(server);
+            }
+            else if (serverConf.IsArray()) {
+              for (SizeType i = 0; i < serverConf.Size(); i++) {
+                const Value& serverValue = serverConf[i];
+                Server_t server;
+                for (Value::ConstMemberIterator srvIt = serverValue.MemberBegin(); srvIt != serverValue.MemberEnd(); ++srvIt) {
+                  string key(srvIt->name.GetString());
+                  if (key.compare("address") == 0 && srvIt->value.IsString()) {
+                    server.address = srvIt->value.GetString();
+                  } else if (key.compare("port") == 0 && srvIt->value.IsUint()) {
+                    server.port = srvIt->value.GetUint();
+                  } else if (key.compare("enabled") == 0 && srvIt->value.IsBool()) {
+                    server.enabled = srvIt->value.GetBool();
+                  }
+                }
+                servers.push_back(server);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+void PrintConfiguration()
+{
+  for (vector<Server_t>::iterator it = servers.begin(); it != servers.end(); ++it) {
+    printf("server: .address = %s; .port = %hu; .enable = %d\n", it->address.c_str(), it->port, it->enabled);
+  }
+  printf("Gateway Configuration\n");
+  printf("  %s (%s)\n  %s\n", platform, email, description);
+  printf("  Latitude=%.8f\n  Longitude=%.8f\n  Altitude=%d\n", lat,lon,alt);
+  printf("  Interface: %s\n", interface);
+
+}
+
 int main () {
 
     struct timeval nowtime;
     uint32_t lasttime;
+
+    LoadConfiguration("global_conf.json");
+    PrintConfiguration();
 
     wiringPiSetup () ;
     pinMode(ssPin, OUTPUT);
@@ -556,7 +673,7 @@ int main () {
     si_other.sin_port = htons(PORT);
 
     ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name, "eth0", IFNAMSIZ-1);  // can we rely on eth0?
+    strncpy(ifr.ifr_name, interface, IFNAMSIZ-1);  // can we rely on eth0?
     ioctl(s, SIOCGIFHWADDR, &ifr);
 
     /* display result */
