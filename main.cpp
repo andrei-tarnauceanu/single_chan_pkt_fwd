@@ -9,6 +9,11 @@
  *
  *******************************************************************************/
 
+#include <rapidjson/document.h>
+#include <rapidjson/filereadstream.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+
 #include <string>
 #include <stdio.h>
 #include <sys/types.h>
