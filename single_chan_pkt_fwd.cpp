@@ -9,31 +9,38 @@
  *
  *******************************************************************************/
 
+#include "base64.h"
+
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
+#include <wiringPi.h>
+#include <wiringPiSPI.h>
+
+#include <arpa/inet.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
 #include <string>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <string.h>
 #include <iostream>
 #include <cstdlib>
-#include <sys/time.h>
 #include <cstring>
 
-#include <sys/ioctl.h>
-#include <net/if.h>
+#include <netdb.h>
+#include <cstdint>
+#include <cstdio>
+#include <vector>
+
 
 using namespace std;
-
-#include "base64.h"
-
-#include <wiringPi.h>
-#include <wiringPiSPI.h>
+using namespace rapidjson;
 
 typedef bool boolean;
 typedef unsigned char byte;
